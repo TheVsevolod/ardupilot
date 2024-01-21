@@ -244,7 +244,6 @@ void AP_L1_Control::update_waypoint(const Location &prev_WP, const Location &nex
 
     // Calculate the NE position of WP B relative to WP A
     Vector2f AB = prev_WP.get_distance_NE(next_WP);
-    float AB_length = AB.length();
 
     // Check for AB zero length and track directly to the destination
     // if too small
