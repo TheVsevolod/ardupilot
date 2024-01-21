@@ -3,7 +3,7 @@
 
 extern const AP_HAL::HAL& hal;
 
-// table of user settable parameters
+// table of user settable parameters 12345
 const AP_Param::GroupInfo AP_L1_Control::var_info[] = {
     // @Param: PERIOD
     // @DisplayName: L1 control period
