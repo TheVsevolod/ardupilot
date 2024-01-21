@@ -261,21 +261,13 @@ void AP_L1_Control::update_waypoint(const Location &prev_WP, const Location &nex
 
     // calculate distance to target track, for reporting
     _crosstrack_error = A_air % AB;
-
+    
     //Determine if the aircraft is behind a +-135 degree degree arc centred on WP A
     //and further than L1 distance from WP A. Then use WP A as the L1 reference point
     //Otherwise do normal L1 guidance
     float WP_A_dist = A_air.length();
     float alongTrackDist = A_air * AB;
-    if (WP_A_dist > _L1_dist && alongTrackDist/MAX(WP_A_dist, 1.0f) < -0.7071f)
-    {
-        //Calc Nu to fly To WP A
-        Vector2f A_air_unit = (A_air).normalized(); // Unit vector from WP A to aircraft
-        xtrackVel = _groundspeed_vector % (-A_air_unit); // Velocity across line
-        ltrackVel = _groundspeed_vector * (-A_air_unit); // Velocity along line
-        Nu = atan2f(xtrackVel,ltrackVel);
-        _nav_bearing = atan2f(-A_air_unit.y , -A_air_unit.x); // bearing (radians) from AC to L1 point
-    } else if (alongTrackDist > AB_length + groundSpeed*3) {
+
         // we have passed point B by 3 seconds. Head towards B
         // Calc Nu to fly To WP B
         const Vector2f B_air = next_WP.get_distance_NE(_current_loc);
@@ -284,37 +276,6 @@ void AP_L1_Control::update_waypoint(const Location &prev_WP, const Location &nex
         ltrackVel = _groundspeed_vector * (-B_air_unit); // Velocity along line
         Nu = atan2f(xtrackVel,ltrackVel);
         _nav_bearing = atan2f(-B_air_unit.y , -B_air_unit.x); // bearing (radians) from AC to L1 point
-    } else { //Calc Nu to fly along AB line
-
-        //Calculate Nu2 angle (angle of velocity vector relative to line connecting waypoints)
-        xtrackVel = _groundspeed_vector % AB; // Velocity cross track
-        ltrackVel = _groundspeed_vector * AB; // Velocity along track
-        float Nu2 = atan2f(xtrackVel,ltrackVel);
-        //Calculate Nu1 angle (Angle to L1 reference point)
-        float sine_Nu1 = _crosstrack_error/MAX(_L1_dist, 0.1f);
-        //Limit sine of Nu1 to provide a controlled track capture angle of 45 deg
-        sine_Nu1 = constrain_float(sine_Nu1, -0.7071f, 0.7071f);
-        float Nu1 = asinf(sine_Nu1);
-
-        // compute integral error component to converge to a crosstrack of zero when traveling
-        // straight but reset it when disabled or if it changes. That allows for much easier
-        // tuning by having it re-converge each time it changes.
-        if (_L1_xtrack_i_gain <= 0 || !is_equal(_L1_xtrack_i_gain.get(), _L1_xtrack_i_gain_prev)) {
-            _L1_xtrack_i = 0;
-            _L1_xtrack_i_gain_prev = _L1_xtrack_i_gain;
-        } else if (fabsf(Nu1) < radians(5)) {
-            _L1_xtrack_i += Nu1 * _L1_xtrack_i_gain * dt;
-
-            // an AHRS_TRIM_X=0.1 will drift to about 0.08 so 0.1 is a good worst-case to clip at
-            _L1_xtrack_i = constrain_float(_L1_xtrack_i, -0.1f, 0.1f);
-        }
-
-        // to converge to zero we must push Nu1 harder
-        Nu1 += _L1_xtrack_i;
-
-        Nu = Nu1 + Nu2;
-        _nav_bearing = wrap_PI(atan2f(AB.y, AB.x) + Nu1);   // bearing (radians) from AC to L1 point
-    }
 
     _prevent_indecision(Nu);
     _last_Nu = Nu;
