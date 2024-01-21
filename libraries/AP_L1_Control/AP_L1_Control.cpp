@@ -264,8 +264,8 @@ void AP_L1_Control::update_waypoint(const Location &prev_WP, const Location &nex
     //Determine if the aircraft is behind a +-135 degree degree arc centred on WP A
     //and further than L1 distance from WP A. Then use WP A as the L1 reference point
     //Otherwise do normal L1 guidance
-    float WP_A_dist = A_air.length();
-    float alongTrackDist = A_air * AB;
+
+    
 
         // we have passed point B by 3 seconds. Head towards B
         // Calc Nu to fly To WP B
