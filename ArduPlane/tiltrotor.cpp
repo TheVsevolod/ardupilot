@@ -221,7 +221,7 @@ void Tiltrotor::continuous_update(void)
     // default to inactive
     _motors_active = false;
 
-    // the maximum rate of throttle change
+    // the maximum rate of throttle change1
     float max_change;
 
     uint32_t now_tilt = AP_HAL::millis();
