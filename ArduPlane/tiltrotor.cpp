@@ -172,7 +172,7 @@ float Tiltrotor::tilt_max_change(bool up, bool in_flap_range) const
         if (plane.arming.is_armed_and_safety_off() && !quadplane.in_vtol_mode() && !quadplane.assisted_flight) {
             fast_tilt = true;
         }
-        if (!plane.arming.is_armed_and_safety_off() {
+        if (!plane.arming.is_armed_and_safety_off()) {
             fast_tilt = true;
         }
         if (fast_tilt) {
