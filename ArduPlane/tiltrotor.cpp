@@ -172,6 +172,9 @@ float Tiltrotor::tilt_max_change(bool up, bool in_flap_range) const
         if (plane.arming.is_armed_and_safety_off() && !quadplane.in_vtol_mode() && !quadplane.assisted_flight) {
             fast_tilt = true;
         }
+        if (!plane.arming.is_armed_and_safety_off() {
+            fast_tilt = true;
+        }
         if (fast_tilt) {
             // allow a minimum of 90 DPS in manual or if we are not
             // stabilising, to give fast control
@@ -211,6 +214,8 @@ float Tiltrotor::get_forward_flight_tilt() const
 /*
   update motor tilt for continuous tilt servos
  */
+
+bool tilt_override = false;
 void Tiltrotor::continuous_update(void)
 {
     // default to inactive
@@ -219,13 +224,24 @@ void Tiltrotor::continuous_update(void)
     // the maximum rate of throttle change
     float max_change;
 
+    uint32_t now_tilt = AP_HAL::millis();
+    constexpr uint32_t ARMING_TILT_DELAY_MS = 2000; // delay to keep motors down after arming
+
+    if (!plane.arming.is_armed_and_safety_off() || (plane.arming.is_armed_and_safety_off() && (now_tilt - hal.util->get_last_armed_change()) <= ARMING_TILT_DELAY_MS)) {
+        tilt_override = true;
+        slew(get_forward_flight_tilt());
+    } else {
+        tilt_override = false; 
+    }
     if (!quadplane.in_vtol_mode() && (!plane.arming.is_armed_and_safety_off() || !quadplane.assisted_flight)) {
         // we are in pure fixed wing mode. Move the tiltable motors all the way forward and run them as
         // a forward motor
 
         // option set then if disarmed move to VTOL position to prevent ground strikes, allow tilt forward in manual mode for testing
         const bool disarmed_tilt_up = !plane.arming.is_armed_and_safety_off() && (plane.control_mode != &plane.mode_manual) && quadplane.option_is_set(QuadPlane::OPTION::DISARMED_TILT_UP);
-        slew(disarmed_tilt_up ? 0.0 : get_forward_flight_tilt());
+        if (!tilt_override) {
+            slew(disarmed_tilt_up ? 0.0 : get_forward_flight_tilt());
+        }
 
         max_change = tilt_max_change(false);
 
@@ -299,7 +315,9 @@ void Tiltrotor::continuous_update(void)
         // set to quadplane.forward_throttle_pct()
         const float fwd_g_demand = 0.01 * quadplane.forward_throttle_pct();
         const float fwd_tilt_deg = MIN(degrees(atanf(fwd_g_demand)), (float)max_angle_deg);
-        slew(MIN(fwd_tilt_deg * (1/90.0), get_forward_flight_tilt()));
+        if (!tilt_override) {
+            slew(MIN(fwd_tilt_deg * (1/90.0), get_forward_flight_tilt()));
+        }
         return;
     } else if (!quadplane.assisted_flight &&
                (plane.control_mode == &plane.mode_qacro ||
@@ -308,11 +326,15 @@ void Tiltrotor::continuous_update(void)
     {
         if (quadplane.rc_fwd_thr_ch == nullptr) {
             // no manual throttle control, set angle to zero
-            slew(0);
+            if (!tilt_override) {
+                slew(0);
+            }
         } else {
             // manual control of forward throttle up to max VTOL angle
             float settilt = 0.01f * quadplane.forward_throttle_pct();
-            slew(MIN(settilt * max_angle_deg * (1/90.0), get_forward_flight_tilt())); 
+            if (!tilt_override) {
+                slew(MIN(settilt * max_angle_deg * (1/90.0), get_forward_flight_tilt()));
+            }
         }
         return;
     }
@@ -327,8 +349,10 @@ void Tiltrotor::continuous_update(void)
         // Q_TILT_MAX. Anything above 50% throttle gets
         // Q_TILT_MAX. Below 50% throttle we decrease linearly. This
         // relies heavily on Q_VFWD_GAIN being set appropriately.
-       float settilt = constrain_float((SRV_Channels::get_output_scaled(SRV_Channel::k_throttle)-MAX(plane.aparm.throttle_min.get(),0)) * 0.02, 0, 1);
-       slew(MIN(settilt * max_angle_deg * (1/90.0), get_forward_flight_tilt())); 
+        float settilt = constrain_float((SRV_Channels::get_output_scaled(SRV_Channel::k_throttle)-MAX(plane.aparm.throttle_min.get(),0)) * 0.02, 0, 1);
+        if (!tilt_override) {
+           slew(MIN(settilt * max_angle_deg * (1/90.0), get_forward_flight_tilt()));
+        }
     }
 }
 
